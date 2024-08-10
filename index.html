@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Игра "Zёрнышко"</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #game-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        #zernishko {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #result {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            display: none;
+            text-align: center;
+        }
+
+        #restart {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #theme-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .light-theme {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .dark-theme {
+            background-color: #333;
+            color: #f0f0f0;
+        }
+
+        .dark-theme #result {
+            background-color: #444;
+            color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+<div id="game-area" class="light-theme">
+    <div id="zernishko"></div>
+</div>
+<div id="result">
+    <p id="message"></p>
+    <button id="restart">zАпустить zаново</button>
+</div>
+<div id="theme-toggle">🌓</div>
+
+<script>
+    const gameElements = {
+        zernishko: document.getElementById('zernishko'),
+        gameArea: document.getElementById('game-area'),
+        result: document.getElementById('result'),
+        message: document.getElementById('message'),
+        restartButton: document.getElementById('restart'),
+        themeToggle: document.getElementById('theme-toggle')
+    };
+
+    const gameState = {
+        clicks: 0,
+        startTime: null,
+        isPlaying: true,
+        isDarkTheme: false,
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        swipeStartTime: 0
+    };
+
+const randomNumber = Math.floor(Math.random() * 10) + 1;
+const clickSoundFile = `mp3/${randomNumber}.mp3`;
+const gameAssets = {
+    grainImage: new Image(),
+    clickSound: new Audio(clickSoundFile),
+    fanfareSound: new Audio('fanfare.mp3')
+};
+
+    gameAssets.grainImage.src = 'zer.png';
+
+    function spawnZernishko() {
+        const { clientWidth, clientHeight } = gameElements.gameArea;
+        const { clientWidth: zernishkoWidth, clientHeight: zernishkoHeight } = gameElements.zernishko;
+        const maxX = clientWidth - zernishkoWidth;
+        const maxY = clientHeight - zernishkoHeight;
+        const randomX = Math.floor(Math.random() * maxX);
+        const randomY = Math.floor(Math.random() * maxY);
+        const randomRotation = Math.floor(Math.random() * 360);
+
+        Object.assign(gameElements.zernishko.style, {
+            left: `${randomX}px`,
+            top: `${randomY}px`,
+            transform: `rotate(${randomRotation}deg)`
+        });
+    }
+
+function handleClick() {
+    if (!gameState.isPlaying) return;
+    gameState.clicks++;
+    spawnZernishko();
+
+    const randomNumber = Math.floor(Math.random() * 10) + 1;
+    const clickSoundFile = `mp3/${randomNumber}.mp3`;
+    gameAssets.clickSound = new Audio(clickSoundFile);
+
+    gameAssets.clickSound.play();
+}
+
+    function handleSwipeStart(e) {
+        if (!gameState.isPlaying || gameState.clicks <= 1) return;
+        gameState.isDragging = true;
+        gameState.startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        gameState.startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        gameState.swipeStartTime = Date.now();
+    }
+
+    function handleSwipeEnd(e) {
+        if (!gameState.isDragging) return;
+        gameState.isDragging = false;
+        const endX = e.type.includes('mouse') ? e.clientX : e.changedTouches[0].clientX;
+        const endY = e.type.includes('mouse') ? e.clientY : e.changedTouches[0].clientY;
+        const swipeEndTime = Date.now();
+
+        const deltaX = endX - gameState.startX;
+        const deltaY = endY - gameState.startY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const time = swipeEndTime - gameState.swipeStartTime;
+        const speed = distance / time;
+
+        if (speed > 0.5) {
+            endGame();
+        }
+    }
+
+    function handleSwipeMove(e) {
+        if (!gameState.isDragging) return;
+        // Optional: Add any behavior you want during the swipe
+    }
+
+    function endGame() {
+        gameState.isPlaying = false;
+        const endTime = new Date();
+        const playTime = (endTime - gameState.startTime) / 1000;
+        const minutes = Math.floor(playTime / 60);
+        const seconds = Math.floor(playTime % 60);
+
+        gameElements.message.innerHTML = `
+            Поздравляем, вы курица ${minutes} минут ${seconds} секунд!<br>
+            Зерн склевано: ${gameState.clicks}
+        `;
+
+        gameElements.result.style.display = 'block';
+        // make text color white if dark theme is enabled
+        gameElements.message.style.color = gameState.isDarkTheme ? '#f0f0f0' : '#333';
+        gameAssets.fanfareSound.play();
+    }
+
+    function startGame() {
+        Object.assign(gameState, {
+            clicks: 0,
+            startTime: new Date(),
+            isPlaying: true
+        });
+        gameElements.result.style.display = 'none';
+        spawnZernishko();
+    }
+
+    function toggleTheme() {
+        gameState.isDarkTheme = !gameState.isDarkTheme;
+        gameElements.gameArea.classList.toggle('dark-theme');
+        gameElements.gameArea.classList.toggle('light-theme');
+    }
+
+    function initializeEventListeners() {
+        gameElements.zernishko.addEventListener('click', handleClick);
+        gameElements.restartButton.addEventListener('click', startGame);
+        gameElements.themeToggle.addEventListener('click', toggleTheme);
+
+        gameElements.gameArea.addEventListener('mousedown', handleSwipeStart);
+        gameElements.gameArea.addEventListener('touchstart', handleSwipeStart);
+        gameElements.gameArea.addEventListener('mousemove', handleSwipeMove);
+        gameElements.gameArea.addEventListener('touchmove', handleSwipeMove);
+        gameElements.gameArea.addEventListener('mouseup', handleSwipeEnd);
+        gameElements.gameArea.addEventListener('touchend', handleSwipeEnd);
+    }
+
+    function initializeGame() {
+        gameAssets.grainImage.onload = function () {
+            Object.assign(gameElements.zernishko.style, {
+                backgroundImage: `url('${gameAssets.grainImage.src}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+            });
+        };
+
+        initializeEventListeners();
+        startGame();
+    }
+
+    initializeGame();
+</script>
+</body>
+</html>
